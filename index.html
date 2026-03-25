@@ -117,53 +117,57 @@
             } else { alert("รหัสผ่านไม่ถูกต้อง"); }
         }
 
-        async function processExcel() {
-            const files = document.getElementById('xlInput').files;
-            if(files.length === 0) return alert("เลือกไฟล์ก่อนครับ");
+       async function processExcel() {
+    const files = document.getElementById('xlInput').files;
+    if(files.length === 0) return alert("เลือกไฟล์ก่อนครับ");
+    
+    const status = document.getElementById('status');
+    status.innerHTML = "กำลังอ่านข้อมูล...";
+    let allStudents = [];
+
+    for (let file of files) {
+        const data = await file.arrayBuffer();
+        const wb = XLSX.read(data, { type: 'array' });
+        
+        // วนลูปทุกหน้า Sheet (ข้ามหน้าแรกที่เป็นสรุปผลรวม)
+        for (let i = 1; i < wb.SheetNames.length; i++) {
+            const sheetName = wb.SheetNames[i];
+            const ws = wb.Sheets[sheetName];
             
-            const status = document.getElementById('status');
-            status.innerHTML = "กำลังอ่านข้อมูล...";
-            let allStudents = [];
+            // ตรวจสอบว่ามีข้อมูลชื่อในเซลล์ B2 หรือไม่ (ปรับตำแหน่งตามไฟล์จริง)
+            if(ws['B2'] && ws['B2'].v && ws['B2'].v !== "ชื่อ") { 
+                const student = {
+                    id: ws['C2'] ? String(ws['C2'].v).trim() : '', // เลขประจำตัว
+                    name: ws['B2'] ? ws['B2'].v : '',             // ชื่อนักเรียน
+                    gpax: ws['E5'] ? ws['E5'].v : '0.00',          // GPAX
+                    attr: ws['F5'] ? ws['F5'].v : '-',             // คุณลักษณะ
+                    read: ws['G5'] ? ws['G5'].v : '-',             // การอ่าน
+                    subjects: []
+                };
 
-            for (let file of files) {
-                const data = await file.arrayBuffer();
-                const wb = XLSX.read(data, { type: 'array' });
-                
-                // วนลูปทุกหน้า Sheet (ยกเว้นหน้าแรกที่เป็นหน้าสรุป)
-                for (let i = 1; i < wb.SheetNames.length; i++) {
-                    const ws = wb.Sheets[wb.SheetNames[i]];
-                    if(!ws['B2']) continue; // ข้ามถ้าไม่มีชื่อ
-
-                    const student = {
-                        id: ws['C2'] ? String(ws['C2'].v).trim() : '',
-                        name: ws['B2'] ? ws['B2'].v : '',
-                        gpax: ws['E5'] ? ws['E5'].v : '0.00',
-                        attr: ws['F5'] ? ws['F5'].v : '-',
-                        read: ws['G5'] ? ws['G5'].v : '-',
-                        subjects: []
-                    };
-
-                    // ดึงข้อมูลวิชา (สมมติว่าวิชาเริ่มแถวที่ 10 ถึง 20 ตามโครงสร้าง ปพ.6 ทั่วไป)
-                    // คุณสามารถปรับช่วงแถว (Row) ตรงนี้ให้ตรงกับไฟล์จริง
-                    for(let r = 10; r <= 30; r++) {
-                        if(ws['B'+r] && ws['B'+r].v) {
-                            student.subjects.push({
-                                name: ws['B'+r].v,
-                                score: ws['D'+r] ? ws['D'+r].v : '-',
-                                grade: ws['E'+r] ? ws['E+r'].v : '-'
-                            });
-                        }
+                // ดึงเกรดรายวิชา (จากตัวอย่างครู: แถวที่ 10-30)
+                for(let r = 10; r <= 30; r++) {
+                    const subName = ws['B'+r] ? ws['B'+r].v : null;
+                    if(subName && subName.trim() !== "") {
+                        student.subjects.push({
+                            name: subName,
+                            score: ws['D'+r] ? ws['D'+r].v : '-',
+                            grade: ws['E'+r] ? ws['E'+r].v : '-'
+                        });
                     }
-                    allStudents.push(student);
                 }
+                allStudents.push(student);
             }
-
-            const blob = new Blob([JSON.stringify(allStudents, null, 2)], { type: 'application/json' });
-            document.getElementById('dl-link').href = URL.createObjectURL(blob);
-            document.getElementById('dl-link').download = "data.json";
-            document.getElementById('dl-area').classList.remove('hidden');
-            status.innerHTML = `✅ รวมข้อมูลสำเร็จ ${allStudents.length} คน`;
         }
+    }
+
+    // สร้างไฟล์ JSON ใหม่
+    const blob = new Blob([JSON.stringify(allStudents, null, 2)], { type: 'application/json' });
+    document.getElementById('dl-link').href = URL.createObjectURL(blob);
+    document.getElementById('dl-link').download = "data.json";
+    document.getElementById('dl-area').classList.remove('hidden');
+    status.innerHTML = `✅ ประมวลผลสำเร็จ! พบนักเรียน ${allStudents.length} คน`;
+}
 
         // --- User Search Logic ---
         async function fetchData() {
