@@ -3,226 +3,201 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WTP Grading System | ระบบเช็คเกรดออนไลน์</title>
+    <title>ระบบรายงานผลการเรียน ปพ.6 | โรงเรียนวัดท่าพูด</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Sarabun', sans-serif; }
-        .glass-morphism { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
-        .gradient-bg { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
+        .gradient-header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+        .grade-card { transition: all 0.3s ease; }
+        .grade-card:hover { transform: translateY(-5px); }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen">
+<body>
 
-    <nav class="bg-white/80 sticky top-0 z-30 border-b border-slate-200 px-6 py-4 flex justify-between items-center backdrop-blur-md">
+    <nav class="bg-white shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-40">
         <div class="flex items-center gap-2">
-            <div class="w-8 h-8 gradient-bg rounded-lg shadow-lg"></div>
-            <span class="font-bold text-slate-800 text-xl tracking-tight">WTP <span class="text-indigo-600">GRADE</span></span>
+            <span class="font-bold text-indigo-600 text-xl">WTP GRADE</span>
         </div>
-        <button onclick="openAdminModal()" class="text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors">
-            สำหรับบุคลากร
-        </button>
+        <button onclick="openAdmin()" class="text-sm font-medium text-slate-500 hover:text-indigo-600">สำหรับครู</button>
     </nav>
 
-    <main class="max-w-4xl mx-auto py-12 px-4">
+    <main class="max-w-4xl mx-auto py-10 px-4">
         
-        <section id="search-section" class="text-center mb-12">
-            <h1 class="text-4xl font-extrabold text-slate-900 mb-4">ตรวจสอบผลการเรียน</h1>
-            <p class="text-slate-500 mb-8 text-lg">รายงานผลการพัฒนาคุณภาพผู้เรียน ปีการศึกษา 2569</p>
+        <section id="user-view" class="text-center">
+            <h1 class="text-3xl font-bold text-slate-800 mb-2">เช็คผลการเรียนออนไลน์</h1>
+            <p class="text-slate-500 mb-8">ปีการศึกษา 2569 | ปพ.6 ฉบับสมบูรณ์</p>
             
-            <div class="max-w-md mx-auto relative">
-                <input type="text" id="studentIdInput" placeholder="กรอกเลขประจำตัวนักเรียน" 
-                    class="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl shadow-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-lg">
-                <button onclick="handleSearch()" class="mt-4 w-full gradient-bg text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] transition-all">
-                    เข้าสู่ระบบดูเกรด
+            <div class="max-w-md mx-auto bg-white p-6 rounded-3xl shadow-xl border border-slate-100">
+                <input type="text" id="searchId" placeholder="กรอกเลขประจำตัวนักเรียน" 
+                    class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500 text-lg text-center mb-4">
+                <button onclick="fetchData()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold hover:bg-indigo-700 transition-all">
+                    ดูผลการเรียน
                 </button>
             </div>
         </section>
 
-        <section id="result-section" class="hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div class="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100">
-                <div class="gradient-bg p-8 text-white">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
-                            <h2 id="disp-name" class="text-2xl font-bold">ชื่อ-นามสกุล</h2>
-                            <p id="disp-id" class="opacity-80">รหัสนักเรียน: -</p>
+        <section id="result-view" class="hidden mt-10 space-y-6">
+            <div class="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
+                <div class="gradient-header p-8 text-white">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div class="text-center md:text-left">
+                            <h2 id="res-name" class="text-2xl font-bold italic">ชื่อ-นามสกุล</h2>
+                            <p id="res-id" class="opacity-80">รหัสประจำตัว: -</p>
                         </div>
-                        <div class="bg-white/20 backdrop-blur-md px-6 py-3 rounded-2xl text-center">
-                            <p class="text-sm uppercase tracking-wider opacity-80">เกรดเฉลี่ย (GPAX)</p>
-                            <p id="disp-gpax" class="text-3xl font-black">0.00</p>
+                        <div class="bg-white/20 backdrop-blur-md p-4 rounded-2xl text-center min-w-[120px]">
+                            <p class="text-xs uppercase font-bold opacity-80 mb-1">GPAX</p>
+                            <p id="res-gpax" class="text-4xl font-black">0.00</p>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 md:grid-cols-2 border-b border-slate-100">
-                    <div class="p-6 text-center border-r border-slate-100">
+                <div class="p-6 grid grid-cols-2 gap-4 border-b border-slate-100 bg-slate-50/50">
+                    <div class="text-center p-4">
                         <p class="text-xs text-slate-400 font-bold uppercase mb-1">คุณลักษณะฯ</p>
-                        <p id="disp-attr" class="text-lg font-semibold text-slate-700">-</p>
+                        <p id="res-attr" class="text-lg font-bold text-indigo-600">-</p>
                     </div>
-                    <div class="p-6 text-center">
-                        <p class="text-xs text-slate-400 font-bold uppercase mb-1">อ่าน คิดวิเคราะห์</p>
-                        <p id="disp-read" class="text-lg font-semibold text-slate-700">-</p>
+                    <div class="text-center p-4">
+                        <p class="text-xs text-slate-400 font-bold uppercase mb-1">การอ่าน/คิดวิเคราะห์</p>
+                        <p id="res-read" class="text-lg font-bold text-indigo-600">-</p>
                     </div>
                 </div>
 
-                <div class="p-6 bg-slate-50">
-                    <p class="text-center text-slate-400 text-sm">รายละเอียดรายวิชาจะแสดงผลตามโครงสร้างไฟล์ ปพ.6</p>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase">รายวิชา</th>
+                                <th class="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase">คะแนน</th>
+                                <th class="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase">เกรด</th>
+                            </tr>
+                        </thead>
+                        <tbody id="res-table" class="divide-y divide-slate-100">
+                            </tbody>
+                    </table>
                 </div>
             </div>
-            
-            <button onclick="location.reload()" class="mt-8 mx-auto block text-slate-400 hover:text-indigo-600 font-medium">
-                ← กลับไปค้นหาใหม่
-            </button>
+            <button onclick="window.location.reload()" class="block mx-auto text-slate-400 font-medium hover:text-indigo-600">← กลับไปค้นหาใหม่</button>
         </section>
     </main>
 
-    <div id="admin-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl scale-95 animate-in zoom-in duration-300">
-            <h3 class="text-2xl font-bold text-slate-800 mb-2 text-center">Admin Login</h3>
-            <p class="text-slate-500 text-sm mb-6 text-center">เฉพาะคณะครูและผู้ดูแลระบบเท่านั้น</p>
+    <div id="admin-panel" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-xl w-full shadow-2xl">
+            <div id="admin-login">
+                <h3 class="text-2xl font-bold mb-6 text-center">Admin Login</h3>
+                <input type="password" id="adminPass" placeholder="กรอกรหัสผ่าน" class="w-full px-4 py-3 border rounded-xl mb-4 outline-none">
+                <button onclick="checkAdmin()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold">เข้าสู่ระบบ</button>
+                <button onclick="closeAdmin()" class="w-full mt-2 text-slate-400 text-sm">ปิด</button>
+            </div>
             
-            <div class="space-y-4">
-                <input type="text" id="adminUser" placeholder="ชื่อผู้ใช้งาน" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500">
-                <input type="password" id="adminPass" placeholder="รหัสผ่าน" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500">
-                <button onclick="processLogin()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition-all">เข้าสู่ระบบ</button>
-                <button onclick="closeAdminModal()" class="w-full text-slate-400 text-sm font-medium">ปิดหน้าต่าง</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="admin-panel" class="fixed inset-0 bg-slate-50 hidden z-[60] overflow-y-auto">
-        <div class="max-w-3xl mx-auto py-12 px-6">
-            <div class="flex justify-between items-center mb-10">
-                <h2 class="text-3xl font-black text-slate-900">แผงควบคุมระบบ</h2>
-                <button onclick="closeAdminPanel()" class="bg-white border border-slate-200 px-4 py-2 rounded-xl text-red-500 font-bold hover:bg-red-50 transition-all">ออกจากระบบ</button>
-            </div>
-
-            <div class="bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
-                <div class="mb-8 p-6 bg-indigo-50 rounded-2xl border border-indigo-100">
-                    <h4 class="font-bold text-indigo-900 mb-2 uppercase text-xs tracking-widest">ขั้นตอนการอัปเดตข้อมูล</h4>
-                    <ol class="text-sm text-indigo-700 space-y-2 list-decimal ml-4">
-                        <li>เลือกไฟล์ ปพ.6 (.xlsm) ของนักเรียนทุกคน (เลือกได้หลายไฟล์พร้อมกัน)</li>
-                        <li>กดปุ่มประมวลผลระบบจะรวมไฟล์เป็น <b>data.json</b></li>
-                        <li>ดาวน์โหลดไฟล์แล้วนำไปอัปโหลดขึ้น GitHub Repository ของคุณ</li>
-                    </ol>
-                </div>
-
-                <div class="space-y-6">
-                    <div>
-                        <label class="block text-sm font-bold text-slate-700 mb-2">เลือกไฟล์ Excel</label>
-                        <input type="file" id="multiFileInput" multiple accept=".xlsm, .xlsx" 
-                            class="block w-full text-sm text-slate-500 file:mr-4 file:py-3 file:px-6 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-indigo-600 file:text-white hover:file:bg-indigo-700 cursor-pointer">
-                    </div>
-
-                    <button id="btn-process" onclick="generateJson()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:shadow-lg transition-all disabled:opacity-30">
-                        เริ่มประมวลผลข้อมูล
-                    </button>
-
-                    <div id="status-log" class="text-sm font-mono text-slate-500 max-h-32 overflow-y-auto"></div>
-
-                    <div id="download-box" class="hidden p-6 bg-emerald-50 border border-emerald-100 rounded-2xl text-center">
-                        <p class="text-emerald-700 font-bold mb-4">✨ ประมวลผลสำเร็จ!</p>
-                        <a id="download-link" class="inline-block bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-all">
-                            ดาวน์โหลดไฟล์ data.json
-                        </a>
-                    </div>
+            <div id="admin-tools" class="hidden">
+                <h3 class="text-2xl font-bold mb-2">อัปเดตข้อมูล ปพ.6</h3>
+                <p class="text-sm text-slate-500 mb-6 italic">*ระบบจะดึงข้อมูลแยกรายคนจากทุก Sheet ให้อัตโนมัติ</p>
+                <input type="file" id="xlInput" multiple accept=".xlsm, .xlsx" class="mb-6 block w-full text-sm">
+                <button onclick="processExcel()" id="procBtn" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700">ประมวลผลไฟล์</button>
+                <div id="status" class="mt-4 text-sm text-indigo-600 font-mono"></div>
+                <div id="dl-area" class="hidden mt-6 p-4 bg-emerald-50 rounded-2xl text-center">
+                    <a id="dl-link" class="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold inline-block mb-2">ดาวน์โหลด data.json</a>
+                    <p class="text-xs text-emerald-600">ดาวน์โหลดแล้วนำไปอัปโหลดทับบน GitHub</p>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- Configuration ---
-        const ADMIN_CREDENTIALS = { user: "admin", pass: "wtp2026" };
-
-        // --- UI Logic ---
-        function openAdminModal() { document.getElementById('admin-modal').classList.remove('hidden'); }
-        function closeAdminModal() { document.getElementById('admin-modal').classList.add('hidden'); }
+        // --- Admin Logic ---
+        function openAdmin() { document.getElementById('admin-panel').classList.remove('hidden'); }
+        function closeAdmin() { document.getElementById('admin-panel').classList.add('hidden'); }
         
-        function processLogin() {
-            const u = document.getElementById('adminUser').value;
-            const p = document.getElementById('adminPass').value;
-            if(u === ADMIN_CREDENTIALS.user && p === ADMIN_CREDENTIALS.pass) {
-                document.getElementById('admin-modal').classList.add('hidden');
-                document.getElementById('admin-panel').classList.remove('hidden');
-            } else {
-                alert("รหัสผ่านไม่ถูกต้อง");
-            }
+        function checkAdmin() {
+            if(document.getElementById('adminPass').value === "wtp2026") {
+                document.getElementById('admin-login').classList.add('hidden');
+                document.getElementById('admin-tools').classList.remove('hidden');
+            } else { alert("รหัสผ่านไม่ถูกต้อง"); }
         }
 
-        function closeAdminPanel() {
-            document.getElementById('admin-panel').classList.add('hidden');
-            document.getElementById('adminUser').value = "";
-            document.getElementById('adminPass').value = "";
-        }
-
-        // --- Admin: Data Processing (Excel to JSON) ---
-        async function generateJson() {
-            const files = document.getElementById('multiFileInput').files;
-            if(files.length === 0) return alert("กรุณาเลือกไฟล์ก่อน");
+        async function processExcel() {
+            const files = document.getElementById('xlInput').files;
+            if(files.length === 0) return alert("เลือกไฟล์ก่อนครับ");
             
-            const log = document.getElementById('status-log');
-            log.innerHTML = "กำลังประมวลผล...";
-            let masterData = [];
+            const status = document.getElementById('status');
+            status.innerHTML = "กำลังอ่านข้อมูล...";
+            let allStudents = [];
 
             for (let file of files) {
-                try {
-                    const data = await file.arrayBuffer();
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    // ดึงข้อมูลจาก Sheet1 (อ้างอิงตามไฟล์ ปพ.6)
-                    const ws = workbook.Sheets[workbook.SheetNames[0]];
-                    
-                    const studentRecord = {
-                        id: ws['C2'] ? String(ws['C2'].v).trim() : 'N/A',
-                        name: ws['B2'] ? ws['B2'].v : 'ไม่ระบุชื่อ',
-                        gpax: ws['E5'] ? parseFloat(ws['E5'].v).toFixed(2) : '0.00',
+                const data = await file.arrayBuffer();
+                const wb = XLSX.read(data, { type: 'array' });
+                
+                // วนลูปทุกหน้า Sheet (ยกเว้นหน้าแรกที่เป็นหน้าสรุป)
+                for (let i = 1; i < wb.SheetNames.length; i++) {
+                    const ws = wb.Sheets[wb.SheetNames[i]];
+                    if(!ws['B2']) continue; // ข้ามถ้าไม่มีชื่อ
+
+                    const student = {
+                        id: ws['C2'] ? String(ws['C2'].v).trim() : '',
+                        name: ws['B2'] ? ws['B2'].v : '',
+                        gpax: ws['E5'] ? ws['E5'].v : '0.00',
                         attr: ws['F5'] ? ws['F5'].v : '-',
-                        read: ws['G5'] ? ws['G5'].v : '-'
+                        read: ws['G5'] ? ws['G5'].v : '-',
+                        subjects: []
                     };
-                    masterData.push(studentRecord);
-                    log.innerHTML += `<br>✅ เพิ่มข้อมูล: ${studentRecord.name}`;
-                } catch (err) {
-                    log.innerHTML += `<br>❌ ข้อผิดพลาดในไฟล์ ${file.name}`;
+
+                    // ดึงข้อมูลวิชา (สมมติว่าวิชาเริ่มแถวที่ 10 ถึง 20 ตามโครงสร้าง ปพ.6 ทั่วไป)
+                    // คุณสามารถปรับช่วงแถว (Row) ตรงนี้ให้ตรงกับไฟล์จริง
+                    for(let r = 10; r <= 30; r++) {
+                        if(ws['B'+r] && ws['B'+r].v) {
+                            student.subjects.push({
+                                name: ws['B'+r].v,
+                                score: ws['D'+r] ? ws['D'+r].v : '-',
+                                grade: ws['E'+r] ? ws['E+r'].v : '-'
+                            });
+                        }
+                    }
+                    allStudents.push(student);
                 }
             }
 
-            const blob = new Blob([JSON.stringify(masterData, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const dl = document.getElementById('download-link');
-            dl.href = url;
-            dl.download = "data.json";
-            document.getElementById('download-box').classList.remove('hidden');
+            const blob = new Blob([JSON.stringify(allStudents, null, 2)], { type: 'application/json' });
+            document.getElementById('dl-link').href = URL.createObjectURL(blob);
+            document.getElementById('dl-link').download = "data.json";
+            document.getElementById('dl-area').classList.remove('hidden');
+            status.innerHTML = `✅ รวมข้อมูลสำเร็จ ${allStudents.length} คน`;
         }
 
-        // --- User: Search Logic ---
-        async function handleSearch() {
-            const searchId = document.getElementById('studentIdInput').value.trim();
-            if(!searchId) return alert("กรุณากรอกเลขประจำตัว");
+        // --- User Search Logic ---
+        async function fetchData() {
+            const id = document.getElementById('searchId').value.trim();
+            if(!id) return alert("ใส่รหัสด้วยจ้า");
 
             try {
-                // ดึงไฟล์จาก GitHub (ต้องอัปโหลด data.json ไว้ใน Repo เดียวกัน)
-                const response = await fetch('data.json?v=' + new Date().getTime()); // ป้องกัน cache
-                if(!response.ok) throw new Error("File not found");
-                
-                const students = await response.json();
-                const student = students.find(s => s.id === searchId);
+                const res = await fetch('data.json?v=' + Date.now());
+                const data = await res.json();
+                const s = data.find(item => item.id === id);
 
-                if(student) {
-                    document.getElementById('search-section').classList.add('hidden');
-                    document.getElementById('result-section').classList.remove('hidden');
+                if(s) {
+                    document.getElementById('user-view').classList.add('hidden');
+                    document.getElementById('result-view').classList.remove('hidden');
                     
-                    document.getElementById('disp-name').innerText = student.name;
-                    document.getElementById('disp-id').innerText = "รหัสนักเรียน: " + student.id;
-                    document.getElementById('disp-gpax').innerText = student.gpax;
-                    document.getElementById('disp-attr').innerText = student.attr;
-                    document.getElementById('disp-read').innerText = student.read;
-                } else {
-                    alert("ไม่พบข้อมูลเลขประจำตัวนี้ในระบบ");
-                }
-            } catch (err) {
-                alert("ระบบยังไม่มีข้อมูล หรือไฟล์ data.json ขัดข้อง กรุณาติดต่อครูผู้ดูแล");
-            }
+                    document.getElementById('res-name').innerText = s.name;
+                    document.getElementById('res-id').innerText = "รหัสประจำตัว: " + s.id;
+                    document.getElementById('res-gpax').innerText = s.gpax;
+                    document.getElementById('res-attr').innerText = s.attr;
+                    document.getElementById('res-read').innerText = s.read;
+
+                    const table = document.getElementById('res-table');
+                    table.innerHTML = "";
+                    s.subjects.forEach(sub => {
+                        table.innerHTML += `
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="px-6 py-4 text-slate-700 font-medium">${sub.name}</td>
+                                <td class="px-6 py-4 text-center text-slate-600">${sub.score}</td>
+                                <td class="px-6 py-4 text-center font-bold text-indigo-600 text-lg">${sub.grade}</td>
+                            </tr>
+                        `;
+                    });
+                } else { alert("ไม่พบรหัสนี้ในระบบจ้า"); }
+            } catch(e) { alert("ยังไม่มีไฟล์ข้อมูล data.json บน GitHub จ้า"); }
         }
     </script>
 </body>
