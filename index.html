@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบแสดงผลการเรียน ปพ.6</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        /* สไตล์สำหรับอนิเมชั่นการโหลด */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none; /* ซ่อนไว้ตอนเริ่มต้น */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <div class="gradient-bg text-white py-10 px-6 shadow-lg">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold">รายงานผลการพัฒนาคุณภาพผู้เรียน (ปพ.6)</h1>
+                <p class="mt-2 opacity-90">ปีการศึกษา 2569 | โรงเรียนวัดท่าพูด (WTP)</p>
+            </div>
+            <div class="hidden md:block">
+                <img src="https://via.placeholder.com/80" alt="Logo" class="rounded-full border-4 border-white/30">
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto mt-6 px-4">
+        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">อัปโหลดไฟล์หรือใส่ลิงก์ข้อมูล</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">เลือกไฟล์ Excel (.xlsm, .xlsx) จากเครื่อง</label>
+                    <input type="file" id="fileInput" accept=".xlsm, .xlsx" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-50 file:text-indigo-700
+                        hover:file:bg-indigo-100"/>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">หรือใส่ลิงก์ Google Drive (ต้องเป็นลิงก์ที่แชร์สาธารณะ)</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="driveLinkInput" placeholder="https://drive.google.com/..." class="flex-grow px-4 py-2 border rounded-lg text-sm focus:ring-indigo-500 focus:border-indigo-500"/>
+                        <button id="loadDriveLinkBtn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">โหลดข้อมูล</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3 mt-4 text-sm text-gray-600">
+                <div id="loader" class="loader"></div>
+                <span id="statusMessage"></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="studentInfoSection" class="max-w-4xl mx-auto mt-6 px-4 hidden"> <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-sm text-gray-500">ชื่อ-นามสกุล</p>
+                    <p id="studentName" class="text-lg font-semibold text-gray-800">-</p>
+                </div>
+                <div>
+                    <p class="text-sm text-gray-500">เลขประจำตัว</p>
+                    <p id="studentId" class="text-lg font-semibold text-gray-800">-</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="gradeTableSection" class="max-w-4xl mx-auto mt-8 px-4 pb-20 hidden"> <h2 class="text-xl font-bold text-gray-700 mb-4 flex items-center">
+            <span class="w-2 h-8 bg-indigo-600 rounded-full mr-3"></span>
+            ผลการเรียนรายวิชา
+        </h2>
+        
+        <div class="overflow-hidden bg-white rounded-xl shadow-md border border-gray-100">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-6 py-4 font-semibold text-gray-600">รหัสวิชา/รายวิชา</th>
+                        <th class="px-6 py-4 font-semibold text-gray-600 text-center">หน่วยกิต</th>
+                        <th class="px-6 py-4 font-semibold text-gray-600 text-center">คะแนน</th>
+                        <th class="px-6 py-4 font-semibold text-gray-600 text-center">เกรด</th>
+                    </tr>
+                </thead>
+                <tbody id="gradeTableBody" class="divide-y divide-gray-100">
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
+                <p class="text-sm text-blue-600">GPAX</p>
+                <p id="gpaxValue" class="text-2xl font-bold text-blue-800">-</p>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
+                <p class="text-sm text-green-600">คุณลักษณะอันพึงประสงค์</p>
+                <p id="desirableCharacteristics" class="text-2xl font-bold text-green-800">-</p>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-lg border border-purple-100 text-center">
+                <p class="text-sm text-purple-600">การอ่าน คิดวิเคราะห์</p>
+                <p id="analyticalReading" class="text-2xl font-bold text-purple-800">-</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const driveLinkInput = document.getElementById('driveLinkInput');
+        const loadDriveLinkBtn = document.getElementById('loadDriveLinkBtn');
+        const loader = document.getElementById('loader');
+        const statusMessage = document.getElementById('statusMessage');
+        const studentInfoSection = document.getElementById('studentInfoSection');
+        const gradeTableSection = document.getElementById('gradeTableSection');
+        const studentName = document.getElementById('studentName');
+        const studentId = document.getElementById('studentId');
+        const gradeTableBody = document.getElementById('gradeTableBody');
+        const gpaxValue = document.getElementById('gpaxValue');
+        const desirableCharacteristics = document.getElementById('desirableCharacteristics');
+        const analyticalReading = document.getElementById('analyticalReading');
+
+        // ฟังก์ชันแสดงสถานะการโหลด
+        function showLoading(message) {
+            loader.style.display = 'block';
+            statusMessage.textContent = message;
+            statusMessage.classList.remove('text-red-600');
+            studentInfoSection.classList.add('hidden');
+            gradeTableSection.classList.add('hidden');
+        }
+
+        // ฟังก์ชันซ่อนสถานะการโหลดและแสดงข้อความผิดพลาด
+        function showError(message) {
+            loader.style.display = 'none';
+            statusMessage.textContent = message;
+            statusMessage.classList.add('text-red-600');
+        }
+
+        // ฟังก์ชันซ่อนสถานะการโหลดเมื่อเสร็จสิ้น
+        function hideLoading() {
+            loader.style.display = 'none';
+            statusMessage.textContent = '';
+        }
+
+        // ฟังก์ชันหลักในการอ่านและประมวลผลไฟล์ Excel (ปรับปรุงจากตัวอย่างก่อนหน้า)
+        function processExcelData(data) {
+            try {
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // --- ตัวอย่างการดึงข้อมูล ---
+                // หมายเหตุ: โครงสร้างการดึงข้อมูลนี้เป็นเพียง "ตัวอย่าง" 
+                // คุณจำเป็นต้องปรับตำแหน่งเซลล์ (เช่น 'B2', 'C5') ให้ตรงกับไฟล์ ปพ.6 จริงของคุณ
+                
+                // 1. ดึงข้อมูลนักเรียนจาก Sheet แรก
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // สมมติว่า ชื่อนักเรียนอยู่ที่เซลล์ B2 และ เลขประจำตัวอยู่ที่เซลล์ C2
+                // (คุณต้องตรวจสอบตำแหน่งเซลล์จริงในไฟล์ ปพ.6)
+                studentName.textContent = worksheet['B2'] ? worksheet['B2'].v : 'ไม่พบข้อมูล';
+                studentId.textContent = worksheet['C2'] ? worksheet['C2'].v : 'ไม่พบข้อมูล';
+                
+                // 2. ดึงข้อมูลเกรดจาก Sheet ที่เก็บข้อมูลเกรด
+                // สมมติว่า ข้อมูลเกรดอยู่ใน Sheet ชื่อ 'Grades' และเป็นรูปแบบตาราง
+                // (คุณต้องตรวจสอบชื่อ Sheet และโครงสร้างตารางจริง)
+                const gradeSheetName = workbook.SheetNames.find(name => name.includes('เกรด') || name.includes('Grade')) || workbook.SheetNames[1];
+                const gradeWorksheet = workbook.Sheets[gradeSheetName];
+                
+                // แปลงข้อมูลตารางเกรดเป็น JSON (สมมติว่าแถวแรกเป็นหัวตาราง)
+                const gradeData = XLSX.utils.sheet_to_json(gradeWorksheet, { header: 1 });
+                
+                // ล้างข้อมูลเก่าในตาราง
+                gradeTableBody.innerHTML = '';
+                
+                // วนลูปสร้างแถวข้อมูลเกรด (เริ่มจากแถวที่ 2 สมมติว่าแถวแรกเป็นหัวตาราง)
+                for (let i = 1; i < gradeData.length; i++) {
+                    const row = gradeData[i];
+                    // สมมติโครงสร้าง: [รหัสวิชา, ชื่อวิชา, หน่วยกิต, คะแนน, เกรด]
+                    // (คุณต้องปรับ index ของ array ให้ตรงกับคอลัมน์จริงในไฟล์ ปพ.6)
+                    if (row && row.length >= 5) {
+                        const tr = document.createElement('tr');
+                        tr.classList.add('hover:bg-gray-50', 'transition');
+                        
+                        // คอลัมน์ รหัสวิชา/รายวิชา
+                        const tdSubject = document.createElement('td');
+                        tdSubject.classList.add('px-6', 'py-4');
+                        tdSubject.textContent = `${row[0]} ${row[1]}`; // รหัส + ชื่อ
+                        tr.appendChild(tdSubject);
+                        
+                        // คอลัมน์ หน่วยกิต
+                        const tdCredits = document.createElement('td');
+                        tdCredits.classList.add('px-6', 'py-4', 'text-center');
+                        tdCredits.textContent = row[2];
+                        tr.appendChild(tdCredits);
+                        
+                        // คอลัมน์ คะแนน
+                        const tdScore = document.createElement('td');
+                        tdScore.classList.add('px-6', 'py-4', 'text-center');
+                        tdScore.textContent = row[3];
+                        tr.appendChild(tdScore);
+                        
+                        // คอลัมน์ เกรด
+                        const tdGrade = document.createElement('td');
+                        tdGrade.classList.add('px-6', 'py-4', 'text-center', 'font-bold', 'text-xl');
+                        
+                        // กำหนดสีเกรด (ตัวอย่าง)
+                        const grade = row[4];
+                        if (grade >= 3.5) tdGrade.classList.add('text-green-600');
+                        else if (grade >= 2.5) tdGrade.classList.add('text-indigo-600');
+                        else if (grade >= 1) tdGrade.classList.add('text-orange-600');
+                        else tdGrade.classList.add('text-red-600');
+                        
+                        tdGrade.textContent = grade;
+                        tr.appendChild(tdGrade);
+                        
+                        gradeTableBody.appendChild(tr);
+                    }
+                }
+                
+                // 3. ดึงข้อมูลสรุป
+                // (คุณต้องตรวจสอบตำแหน่งเซลล์จริง)
+                // สมมติ: GPAX อยู่ที่ Sheet แรก เซลล์ E5
+                gpaxValue.textContent = worksheet['E5'] ? worksheet['E5'].v.toFixed(2) : '-';
+                
+                // สมมติ: คุณลักษณะอันพึงประสงค์ และ การอ่านฯ อยู่ที่ Sheet แรก เซลล์ F5 และ G5
+                desirableCharacteristics.textContent = worksheet['F5'] ? worksheet['F5'].v : '-';
+                analyticalReading.textContent = worksheet['G5'] ? worksheet['G5'].v : '-';
+                
+                // แสดงส่วนข้อมูล
+                hideLoading();
+                studentInfoSection.classList.remove('hidden');
+                gradeTableSection.classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Error processing Excel data:', error);
+                showError('เกิดข้อผิดพลาดในการประมวลผลข้อมูล Excel โปรดตรวจสอบรูปแบบไฟล์');
+            }
+        }
+
+        // --- Event Listeners ---
+
+        // 1. จัดการเมื่อมีการเลือกไฟล์จากเครื่อง
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            showLoading(`กำลังโหลดไฟล์ ${file.name}...`);
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                processExcelData(data);
+            };
+            reader.onerror = (error) => {
+                console.error('Error reading file:', error);
+                showError('เกิดข้อผิดพลาดในการอ่านไฟล์');
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // 2. จัดการเมื่อคลิกปุ่ม "โหลดข้อมูล" จาก Google Drive Link
+        loadDriveLinkBtn.addEventListener('click', () => {
+            const link = driveLinkInput.value.trim();
+            if (!link) {
+                showError('โปรดใส่ลิงก์ Google Drive');
+                return;
+            }
+            
+            // ตรวจสอบว่าเป็นลิงก์ Google Drive หรือไม่ (ตรวจสอบเบื้องต้น)
+            if (!link.includes('drive.google.com')) {
+                showError('ลิงก์ไม่ถูกต้อง โปรดใช้ลิงก์ Google Drive');
+                return;
+            }
+            
+            // แปลงลิงก์แชร์เป็นลิงก์ดาวน์โหลดโดยตรง (Direct Download Link)
+            // หมายเหตุ: ไฟล์ต้องถูกแชร์แบบสาธารณะ (Anyone with the link can view)
+            let downloadLink = link;
+            if (link.includes('/file/d/')) {
+                const fileId = link.split('/file/d/')[1].split('/')[0];
+                downloadLink = `https://docs.google.com/uc?export=download&id=${fileId}`;
+            } else if (link.includes('id=')) {
+                const fileId = link.split('id=')[1].split('&')[0];
+                downloadLink = `https://docs.google.com/uc?export=download&id=${fileId}`;
+            }
+            
+            showLoading('กำลังโหลดข้อมูลจาก Google Drive...');
+            
+            // ใช้ fetch เพื่อดาวน์โหลดไฟล์
+            // หมายเหตุ: การดาวน์โหลดจาก Google Drive Direct Link ผ่าน fetch บน Browser
+            // มักจะติดปัญหา CORS (Cross-Origin Resource Sharing) เว้นแต่จะใช้ Google Drive API 
+            // หรือใช้ Proxy Server ในการดึงข้อมูล
+            // วิธีที่ง่ายที่สุดบน Static Web คือใช้ไลบรารีที่จัดการเรื่องนี้ หรือใช้ API
+            
+            // **ตัวอย่างนี้ใช้ fetch ตรงๆ ซึ่งอาจจะทำงานได้เฉพาะในบางกรณีหรือกับ Proxy**
+            // สำหรับการใช้งานจริงบน GitHub Pages อย่างเสถียร แนะนำให้ใช้ Google Drive API (ต้องมี API Key)
+            // หรือแนะนำให้ผู้ใช้ดาวน์โหลดไฟล์มาแล้วอัปโหลดผ่านเครื่องจะเสถียรกว่าครับ
+            
+            fetch(downloadLink)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.arrayBuffer();
+                })
+                .then(data => {
+                    processExcelData(new Uint8Array(data));
+                })
+                .catch(error => {
+                    console.error('Error loading from Drive:', error);
+                    // ข้อความแจ้งเตือนที่ชัดเจนขึ้นเรื่อง CORS
+                    showError('ไม่สามารถโหลดข้อมูลจากลิงก์ได้ (อาจเกิดจากปัญหา CORS ของ Google Drive หรือลิงก์ไม่ได้แชร์สาธารณะ) แนะนำให้อัปโหลดไฟล์จากเครื่องแทนครับ');
+                });
+        });
+
+    </script>
+</body>
+</html>
